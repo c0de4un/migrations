@@ -17,25 +17,32 @@ package migrations
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// IMPORTS
+// STRUCTS
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-import (
-	"database/sql"
-
-	_ "github.com/go-sql-driver/mysql"
-)
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// PUBLIC.METHODS
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-func Up(config string, version int, db *sql.DB) error {
-	return nil
+type migration struct {
+	path  string
+	index int
 }
 
-func Down(config string, version int, db *sql.DB) error {
-	return nil
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// METHODS.PRIVATE
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+func newMigration(path string) (*migration, error) {
+	var migration_ migration
+
+	index, err := getMigrationIndexFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+	migration_.index = index
+
+	return &migration_, nil
+}
+
+func getMigrationIndexFromFile(path string) (int, error) {
+	return 0, nil
 }
 
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
