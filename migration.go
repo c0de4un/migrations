@@ -17,6 +17,17 @@ package migrations
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// IMPORTS
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+import (
+	"database/sql"
+	"io/ioutil"
+	"strconv"
+	"strings"
+)
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // STRUCTS
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -29,20 +40,48 @@ type migration struct {
 // METHODS.PRIVATE
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-func newMigration(path string) (*migration, error) {
-	var migration_ migration
-
-	index, err := getMigrationIndexFromFile(path)
+func newMigration(sqlPath string) (*migration, error) {
+	var obj migration
+	obj.path = sqlPath
+	index, err := getMigrationIndexFromFile(sqlPath)
 	if err != nil {
 		return nil, err
 	}
-	migration_.index = index
+	obj.index = int(index)
 
-	return &migration_, nil
+	return &obj, nil
+}
+
+func (obj *migration) isExecuted(db *sql.DB) bool {
+	row := db.QueryRow("SELECT * FROM `migrations` WHERE `index` = $1", obj.index)
+
+	var index int
+	err := row.Scan(&index)
+
+	return err == nil
+}
+
+func (obj *migration) run(db *sql.DB) error {
+	bytes, err := ioutil.ReadFile(obj.path)
+	if err != nil {
+		return err
+	}
+
+	query := string(bytes)
+	_, err = db.Exec(query)
+
+	return err
 }
 
 func getMigrationIndexFromFile(path string) (int, error) {
-	return 0, nil
+	nameParts := strings.Split(path, "_")
+	nameParts = strings.Split(nameParts[0], "/")
+	index, err := strconv.ParseInt(nameParts[len(nameParts)-1], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(index), err
 }
 
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =

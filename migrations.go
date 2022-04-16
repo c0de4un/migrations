@@ -22,6 +22,9 @@ package migrations
 
 import (
 	"database/sql"
+	"fmt"
+	"io/ioutil"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -30,11 +33,97 @@ import (
 // PUBLIC.METHODS
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-func Up(config string, version int, db *sql.DB) error {
+func Up(dir string, version int, db *sql.DB) error {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if f.IsDir() || !strings.Contains(f.Name(), "_up_") {
+			continue
+		}
+
+		migrationPath := dir + "/" + f.Name()
+		fmt.Printf("\nRunning Up migration #%s\n", migrationPath)
+		migration_, err := newMigration(migrationPath)
+		if err != nil {
+			return err
+		}
+
+		// Skip
+		if (version > 0 && migration_.index < version) || migration_.isExecuted(db) {
+			continue
+		}
+
+		// Run
+		err = migration_.run(db)
+		if err != nil {
+			return err
+		}
+
+		// Save record about migration
+		sqlStatement, err := db.Prepare("INSERT INTO `migrations` VALUES(?, ?)")
+		if err != nil {
+			return err
+		}
+		defer sqlStatement.Close()
+
+		_, err = sqlStatement.Exec(migration_.index, f.Name())
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func Down(config string, version int, db *sql.DB) error {
+func Down(dir string, version int, db *sql.DB) error {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if f.IsDir() || !strings.Contains(f.Name(), "_down_") {
+			continue
+		}
+
+		migrationPath := dir + "/" + f.Name()
+		fmt.Printf("\nRunning Down migration #%s\n", migrationPath)
+		migration_, err := newMigration(migrationPath)
+		if err != nil {
+			return err
+		}
+
+		// Skip
+		if (version > 0 && migration_.index < version) || !migration_.isExecuted(db) {
+			continue
+		}
+
+		// Run
+		err = migration_.run(db)
+		if err != nil {
+			return err
+		}
+
+		// Save record about migration
+		sqlStatement, err := db.Prepare("INSERT INTO `migrations` VALUES(?, ?)")
+		if err != nil {
+			return err
+		}
+		defer sqlStatement.Close()
+
+		_, err = sqlStatement.Exec(migration_.index, f.Name())
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
